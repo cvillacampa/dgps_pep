@@ -61,7 +61,6 @@ if alpha < 0:
 else:
     likelihood_var = 1e-2
 save_to_file = True  # Save all figures to folder
-plot_training = False
 folder_name = 'figs_multimodal'
 seed = 0
 
@@ -127,47 +126,7 @@ Z = kmeans2(X_train, M, minit='points')[0]
 net = GPNetwork(X_train, y_train, L, n_hiddens, M, noisy_layers=True, var_noise=var_noise,
                 lik_noise=likelihood_var, shared_prior=False, no_samples=n_samples, inducing_points=Z,
                 alpha=alpha, seed=seed)
-if plot_training:  # Plots the training process
-    # First step
-    net.train(AdamOptimizer(learning_rate), no_epochs=1, minibatch_size=minibatch_size, show_training_info=False)
-
-    # Prepare dynamic plot
-    def init_axes(ax):
-        ax.clear()
-        ax.set_ylim(-13, 13)
-        ax.set(xlabel='x', ylabel='y')
-        ax.set_title(f"Predictions alpha {alpha}")
-        sns.set_context("paper")  # paper poster
-
-    plt.ion()
-    fig = plt.figure(2)
-    ax = fig.add_subplot(111)
-    if problem == 1:
-        points_x = np.tile(np.linspace(-2.0, 2.0, notest), [n_samples_each_point])[:, None]
-    elif problem == 2:
-        points_x = np.tile(np.linspace(-4.0, 4.0, notest), [n_samples_each_point])[:, None]
-
-    data_frame = pd.DataFrame({'x': points_x.flatten(), 'y': np.zeros(points_x.shape).flatten()})
-    init_axes(ax)
-    sns.set_style('white')  # whitegrid darkgrid, white dark ticks
-    sns.scatterplot(x='x', y='y', data=data_frame, color="black", linewidths=0, marker=".", ax=ax)
-    ax.text(0.01, 0.90, "Samp: {}, iter: {} \nLayers: {} M: {} mb:{}".format(n_samples, 0, L, M, minibatch_size), transform=plt.gcf().transFigure)
-    i = 0
-    step = 10
-    while i < max_iter:
-        net.train(AdamOptimizer(learning_rate), no_epochs=step, minibatch_size=minibatch_size, show_training_info=False, continue_training=True)
-        i += step
-
-        points_y = net.sampleFromPredictive((points_x - X_train_mean) / X_train_std, y_train_std, y_train_mean)
-        data_frame = pd.DataFrame({'x': points_x.flatten(), 'y': points_y.flatten()})
-        init_axes(ax)
-        sns.scatterplot(x='x', y='y', data=data_frame, color="black", linewidths=0, marker=".", ax=ax)
-        ax.text(0.01, 0.90, "Samp: {}, iter: {} \nLayers: {} M: {} mb:{}".format(n_samples, i, L, M, minibatch_size), transform=plt.gcf().transFigure)
-
-        fig.canvas.draw()
-
-else:
-    net.train(AdamOptimizer(learning_rate), no_epochs=max_iter, minibatch_size=minibatch_size, show_training_info=True)
+net.train(AdamOptimizer(learning_rate), no_epochs=max_iter, minibatch_size=minibatch_size, show_training_info=True)
 
 testll, rmse = net.getLogLikelihoodError(X_test, y_test, y_train_std, y_train_mean)
 print("Test RMSE: {}".format(rmse))
