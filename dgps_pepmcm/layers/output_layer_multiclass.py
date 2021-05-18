@@ -35,17 +35,13 @@ class OutputLayerMulticlass(BaseLayer):
         )
 
         # Latent variable that represents noise in the labels
-        self.latent_prob_wrong_label = tf.get_variable(
-            name="lpwl",
-            shape=[1],
-            initializer=tf.constant_initializer(self.logit(1e-3), dtype=config.float_type_tf),
-            dtype=config.float_type_tf
-        )
+        self.latent_prob_wrong_label = tf.constant(self.logit(1e-3), dtype=config.float_type_tf)
+
 
     @classmethod
     def logit(self, p):
         return np.log(p / (1.0 - p))
-        
+
     def compute_probs_gh(self, target_class=None):
         # Mean and the variance of the function corresponding to the observed class
         input_means, input_vars = self.input_means, self.input_vars + tf.exp(self.lvar_noise)
@@ -106,8 +102,8 @@ class OutputLayerMulticlass(BaseLayer):
 
         '''
         probs = self.compute_probs_gh(tf.cast(self.training_targets[:,0], dtype=config.int_type_tf))
-        
-        eps =  tf.sigmoid(self.latent_prob_wrong_label)
+
+        eps = tf.sigmoid(self.latent_prob_wrong_label)
         log_Z = tf.log(probs * (1 - eps)**self.alpha + (1 - probs) * (eps / (self.n_classes - 1))**self.alpha)
         log_Z = tf.reduce_sum(log_Z)
         log_Z /= self.alpha
@@ -141,12 +137,11 @@ class OutputLayerMulticlass(BaseLayer):
         sq_diff = tf.cast(tf.not_equal(labels, self.test_targets_tf), dtype=config.float_type_tf)
 
         targets_one_hot_on = tf.one_hot(self.test_targets_tf[:,0], self.n_classes, tf.constant(1.0, config.float_type_tf), tf.constant(0.0, config.float_type_tf), dtype=config.float_type_tf)
-        probs_y_selected = tf.squeeze(prob) * targets_one_hot_on
-        eps =  tf.sigmoid(self.latent_prob_wrong_label)
-        # probs_y_selected = probs_y_selected * (1 - eps)**self.alpha + (1 - probs_y_selected) * (eps / (self.n_classes - 1))**self.alpha
+        probs_y_selected = tf.reduce_sum(tf.squeeze(prob) * targets_one_hot_on, 1)
+        eps = tf.sigmoid(self.latent_prob_wrong_label)
         probs_y_selected = probs_y_selected * (1 - eps) + (1 - probs_y_selected) * (eps / (self.n_classes - 1))
 
-        return tf.reduce_sum(probs_y_selected, 1), sq_diff
+        return tf.log(probs_y_selected), sq_diff
 
     def sampleFromPredictive(self):
         """

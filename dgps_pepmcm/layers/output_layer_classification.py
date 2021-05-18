@@ -1,9 +1,10 @@
 import numpy as np
 import tensorflow as tf
+import tensorflow_probability as tfp
 
 import dgps_pepmcm.config as config
 from dgps_pepmcm.layers import BaseLayer
-from tensorflow.distributions import Normal
+
 
 
 class OutputLayerClassification(BaseLayer):
@@ -14,7 +15,7 @@ class OutputLayerClassification(BaseLayer):
     def __init__(self, training_targets, no_samples, alpha, seed, lik_noise, input_means, input_vars):
         BaseLayer.__init__(self)
 
-        self.norm = Normal(loc=tf.constant(0.0, config.float_type_tf), scale=tf.constant(1.0, config.float_type_tf))
+        self.norm = tfp.distributions.Normal(loc=tf.constant(0.0, config.float_type_tf), scale=tf.constant(1.0, config.float_type_tf))
         
         self.training_targets = training_targets
         self.no_samples = no_samples
@@ -24,8 +25,8 @@ class OutputLayerClassification(BaseLayer):
         self.seed = seed
         self.input_means = input_means
         self.input_vars = input_vars
-        self.lvar_noise = tf.get_variable("lik_noise", initializer=tf.log(tf.constant(lik_noise, dtype=config.float_type_tf)), dtype=config.float_type_tf)
-        self.test_targets_tf = tf.placeholder(config.int_type_tf, name="y_test", shape=[None, 1])
+        self.lvar_noise = tf.compat.v1.get_variable("lik_noise", initializer=tf.math.log(tf.constant(lik_noise, dtype=config.float_type_tf)), dtype=config.float_type_tf)
+        self.test_targets_tf = tf.compat.v1.placeholder(config.int_type_tf, name="y_test", shape=[None, 1])
 
     def getLayerContributionToEnergy(self):
         '''
@@ -53,16 +54,14 @@ class OutputLayerClassification(BaseLayer):
 
         gh_x, gh_w = self.hermgauss(self.grid_size)
 
-        # gh_w = tf.tile(gh_w[None, :, None], [S, 1, 1])
         gh_w = gh_w[None, None, :]
         ts = gh_x * tf.sqrt(2.0 * input_vars) + input_means
-        # pdfs = 0.5 * (1 + tf.erf(targets*ts / tf.sqrt(tf.constant(2., dtype=config.float_type_tf))))
-        log_cdfs = self.norm.log_cdf(targets*ts)
-        # probs = tf.matmul(pdfs**self.alpha, gh_w) / tf.sqrt(tf.constant(np.pi, dtype=config.float_type_tf))
-        # logZ = tf.log(probs)
-        logZ = tf.reduce_logsumexp(self.alpha*log_cdfs + tf.log(gh_w), axis=2) - 0.5 * tf.log(tf.constant(np.pi, dtype=config.float_type_tf))
 
-        return tf.reduce_logsumexp(logZ, 0) - tf.log(tf.cast(S, config.float_type_tf))
+        log_cdfs = self.norm.log_cdf(targets*ts)
+
+        logZ = tf.reduce_logsumexp(self.alpha*log_cdfs + tf.math.log(gh_w), axis=2) - 0.5 * tf.math.log(tf.constant(np.pi, dtype=config.float_type_tf))
+
+        return tf.reduce_logsumexp(logZ, 0) - tf.math.log(tf.cast(S, config.float_type_tf))
 
     def hermgauss(self, n: int):
         # This has been extracted from GP flow. Return the locations and weights of GH quadrature
@@ -78,7 +77,7 @@ class OutputLayerClassification(BaseLayer):
         # (N, 1)
         prob = tf.exp(
             tf.reduce_logsumexp(self.norm.log_cdf(alpha), 0)
-            - tf.log(tf.cast(S, config.float_type_tf))
+            - tf.math.log(tf.cast(S, config.float_type_tf))
         )
 
         # label[n] = -1 if input_means[n] < 0  else 1
@@ -104,7 +103,7 @@ class OutputLayerClassification(BaseLayer):
             / tf.sqrt(1 + input_vars + tf.exp(self.lvar_noise))
         )
 
-        return tf.reduce_logsumexp(self.norm.log_cdf(alpha), 0) - tf.log(
+        return tf.reduce_logsumexp(self.norm.log_cdf(alpha), 0) - tf.math.log(
             tf.cast(S, config.float_type_tf)
         )
 
@@ -127,7 +126,6 @@ class OutputLayerClassification(BaseLayer):
         labels, _ = self.getPredictedValues()
         err_rate = tf.cast(tf.not_equal(labels, self.test_targets_tf), dtype=config.float_type_tf)
 
-        # probs_y_selected = tf.exp(self.getLogZ(targets = tf.cast(self.test_targets_tf, dtype=config.float_type_tf)))
         probs_y_selected = self.calculate_log_likelihood()
 
         return probs_y_selected, err_rate

@@ -199,7 +199,7 @@ class GPNetwork:
             z = self.training_data[np.random.choice(self.no_points, size=self.no_inducing_points, replace=False), :]
         else:
             # Not first layer and we don't have any initialization to use
-            z = tf.tile(tf.reshape(tf.lin_space(-1.0, 1.0, self.n_inducing_points),
+            z = tf.tile(tf.reshape(tf.lin_space(tf.constant(-1.0, dtype=config.float_type_tf), tf.constant(1.0, dtype=config.float_type_tf), self.no_inducing_points),
                                    shape=[self.no_inducing_points, 1]),
                         [1, input_dim_layer])
 
@@ -207,19 +207,12 @@ class GPNetwork:
 
         lls = tf.zeros([output_dim_layer_hyper, input_dim_layer], dtype=config.float_type_tf)
         lsf = tf.zeros([output_dim_layer_hyper], dtype=config.float_type_tf)
-        # if layer_i == 0:
-        # We initialize the lls on the first layer to the log of the median of the squared distance
+        
         training_data = tf.constant(self.training_data[np.random.choice(self.no_points, size=self.no_inducing_points, replace=False), :], dtype=config.float_type_tf)
         M = tf.reduce_sum(training_data**2, 1)[:, None] * tf.ones([1, self.no_inducing_points], dtype=config.float_type_tf)
         dist = M - 2 * tf.matmul(training_data, training_data, transpose_b=True) + tf.transpose(M)
         median = tf.contrib.distributions.percentile(dist, q=50)
         lls = tf.math.log(median) * tf.ones(tf.shape(lls), dtype=config.float_type_tf)
-
-        # L = tf.cholesky(compute_kernel(lls[0], lsf[0], z[0])) / self.no_layers
-        # if not islast:
-        #     L *= config.jitter
-        # L = L * tf.ones([output_dim_layer, self.no_inducing_points, self.no_inducing_points], dtype=config.float_type_tf)
-        # m = tf.zeros(shape=[output_dim_layer, self.no_inducing_points, 1], dtype=config.float_type_tf)  # q_mu
 
         L = tf.random.normal(shape=[output_dim_layer, self.no_inducing_points, self.no_inducing_points], dtype=config.float_type_tf, seed=self.seed)
         if not islast:
