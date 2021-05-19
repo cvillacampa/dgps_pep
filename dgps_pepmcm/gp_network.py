@@ -277,7 +277,7 @@ class GPNetwork:
             energy += layer.getLayerContributionToEnergy()
         return energy
 
-    # TODO: Desescalado??
+    
     def predict(self, test_data):
         """
         Predict the output for new data
@@ -427,8 +427,6 @@ class GPNetwork:
 
         n_batches = int(np.ceil(1.0 * n_data_points / self.minibatch_size))
 
-        # start = time.process_time()
-        # start_epoch = time.process_time()
         start = time.time()
         start_epoch = time.time()
         
@@ -460,7 +458,6 @@ class GPNetwork:
                     energy_to_log = -avg_energy * n_batches / (i+1)
                     if X_test is not None and y_test is not None:
                         test_nll, test_error = self.getLogLikelihoodError(X_test, y_test, y_train_std, y_train_mean)
-                        #train_nll, train_error = self.getLogLikelihoodError(self.training_data, self.training_targets, y_train_std, y_train_mean)
                     if show_training_info:
                         elapsed_time_epoch = time.time() - start_epoch
                         last_epoch_times.append(elapsed_time_epoch)
@@ -474,14 +471,13 @@ class GPNetwork:
                                          gradient_steps, energy_to_log, elapsed_time_epoch, memory_used(), eta, test_nll, test_error
                                      )
                                  )
-                                #print('Gradient steps: {}, - Energy: {:.6f} Time: {} --- TestNLL: {}, Test Error: {}, TrainNLL: {}, Train Error: {}'.format(gradient_steps, energy_to_log, elapsed_time_epoch, test_nll, test_error, train_nll, train_error))
                             else:
                                 print(
                                         "Iteration: {: <4}| Energy: {: <11.6f} | Time: {: >8.4f}s | Memory: {: >2.2f} GB | ETA: {} | TestNLL: {: >5.6}, TestRMSE: {: >5.6}".format(
                                          gradient_steps, energy_to_log, elapsed_time_epoch, memory_used(), eta, test_nll, test_error
                                      )
                                  )
-                                #print('Gradient steps: {}, - Energy: {:.6f} Time: {} --- TestNLL: {}, TestError: {}'.format(gradient_steps, energy_to_log, elapsed_time_epoch, test_nll, test_error))
+                            
                         else:
                             print(
                                  "Iteration: {: <4}| Energy: {: <11.6f} | Time: {: >8.4f}s | Memory: {: >2.2f} GB | ETA: {}".format(
@@ -489,7 +485,6 @@ class GPNetwork:
                                  )
                              )
                     else:
-                        # elapsed_time_epoch = time.process_time() - start_epoch
                         elapsed_time_epoch = time.time() - start_epoch
 
                     if self.sacred_exp is not None:

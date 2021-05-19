@@ -49,7 +49,7 @@ def build_model(_seed, n_hiddens, nolayers, n_samples, M, alpha, var_noise, like
     return net
 
 
-def train(_seed, minibatch_size, no_iterations, lrate, show_training_info, net=None, n_data=1e-4):
+def train(_seed, minibatch_size, no_iterations, lrate, show_training_info, net=None, n_data=1e-4, X_test=None, y_test=None, y_train_std=None, y_train_mean=None):
     if not minibatch_size:
         minibatch_size = min(1e4, n_data)
 
@@ -58,7 +58,9 @@ def train(_seed, minibatch_size, no_iterations, lrate, show_training_info, net=N
 
     # train
     t0 = time.process_time()
-    net.train(AdamOptimizer(lrate), n_epochs, minibatch_size=minibatch_size, show_training_info=show_training_info)
+    net.train(AdamOptimizer(lrate), n_epochs, minibatch_size=minibatch_size, X_test=X_test,
+              show_training_info=show_training_info, y_test=y_test, y_train_std=y_train_std,
+              y_train_mean=y_train_mean, log_every=100)
     t1 = time.process_time()
 
     return (t1-t0)
@@ -66,37 +68,39 @@ def train(_seed, minibatch_size, no_iterations, lrate, show_training_info, net=N
 
 def main():
     
-    if (len(sys.argv) != 5):
-        print("Usage: \n\tpython3 run_uci.py <dataset_name> <split> <n_layers> <alpha>")
+    if (len(sys.argv) != 4):
+        print("Usage: \n\tpython3 run_exp.py <dataset_name> <n_layers> <alpha>")
         exit(-1)
-
     model = {
-        'n_hiddens': None,
-        'nolayers': int(sys.argv[3]),  # 2,3,4,5
+        'n_hiddens': 8,
+        'nolayers': int(sys.argv[2]),  # 2,3,4,5
         'n_samples': 20,
         'M': 100,
-        'alpha': float(sys.argv[4]),
+        'alpha': float(sys.argv[3]),
         'var_noise': 1e-5,
         'likelihood_var': 0.01,
         'shared_z': False
     }
     show_training_info = True
     dataset_name = sys.argv[1]
-    fixed_split = int(sys.argv[2])
-    no_iterations = 20000
+    fixed_split = 0
+    no_iterations = 200000
     minibatch_size = 100  # min(10k, N)
-    lrate = 0.001
+    lrate = 0.01
     seed = 0
-
+    
     print("[INFO] - Training model on split %d" % fixed_split)
 
     [X_train, y_train, X_test, y_test, y_train_mean, y_train_std] = load_dataset(dataset_name, split=fixed_split)
 
     net = build_model(seed, model['n_hiddens'], model['nolayers'], model['n_samples'], model['M'], model['alpha'], model['var_noise'], model['likelihood_var'], model['shared_z'], X_train=X_train, y_train=y_train)
 
-    training_time = train(seed, minibatch_size, no_iterations, lrate, show_training_info, net=net, n_data=X_train.shape[0])
+    training_time = train(seed, minibatch_size, no_iterations, lrate, show_training_info, net=net, 
+                          n_data=X_train.shape[0], X_test=X_test, y_test=y_test, y_train_std=y_train_std, 
+                          y_train_mean=y_train_mean)
 
     lik, rmse = net.getLogLikelihoodError(X_test, y_test, y_train_std, y_train_mean)
+
 
     print("[INFO] - Current LL: {} and rmse: {} at split {}".format(lik, rmse, fixed_split))
 
