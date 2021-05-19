@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 
+import sys
+sys.path.append('../..')
 import os
 import warnings
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-warnings.filterwarnings("ignore")
+#warnings.filterwarnings("ignore")
+
 import numpy as np
 import time
 from scipy.cluster.vq import kmeans2
 
 from tensorflow.train import AdamOptimizer
-import sys
-sys.path.append('../..')
 from dataset_loader import DatasetLoader
 from dgps_pepmcm.gp_network import GPNetwork
-
 
 
 def load_dataset(dataset_name, split=0):

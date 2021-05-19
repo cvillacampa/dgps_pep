@@ -27,7 +27,15 @@ class DatasetLoader(object):
               'crabs': ['Crabs', 'classification'],
               'iono': ['Iono', 'classification'],
               'pima': ['Pima', 'classification'],
-              'sonar': ['Sonar' 'classification']
+              'sonar': ['Sonar', 'classification'],
+              'glass': ['glass', 'multiclass'],
+              'new-thyroid': ['new-thyroid', 'multiclass'],
+              'svmguide2': ['svmguide2', 'multiclass'],
+              'satellite': ['satellite', 'multiclass'],
+              'vehicle': ['vehicle', 'multiclass'],
+              'waveform': ['waveform', 'multiclass'],
+              'wine': ['wine', 'multiclass'],
+              'vowel': ['vowel', 'multiclass']
             }
 
     def __init__(self, name, data_path='/data/', from_database=False, db_chain="mongodb://"):
@@ -46,7 +54,13 @@ class DatasetLoader(object):
         return self.data_path + self.name + '/data/data.txt'
 
     def read_data(self):
-        if self.from_database:
+        if self.type == "multiclass":
+            data = np.load("%s/%s/data.npz" % (self.data_path, self.name))
+            
+            X, Y = data['arr_0'], data['arr_1'][:, None]
+            
+            data = {'X': X, 'Y': Y.astype(np.int)}
+        elif self.from_database:
             out = self.fs.find_one({"filename": f"{self.name}.json"})
             data_json = json.loads(out.read())
 
@@ -76,7 +90,7 @@ class DatasetLoader(object):
     def get_data(self, split=0):
         if not self.from_database:
             path = self.file_path()
-            if not os.path.isfile(path):
+            if self.type != "multiclass" and not os.path.isfile(path):
                 raise IOError("Error when loading dataset {}, directory {} not found".format(
                                 self.name, path))
 
@@ -93,7 +107,15 @@ class DatasetLoader(object):
         return split_data
 
     def split(self, full_data, split):
-        if self.name == "higgs" or self.name == "airlines_classification10k":
+        if self.type == "multiclass":
+            folds = np.load("%s/%s/folds.npz" % (self.data_path, self.name))
+            
+            itrain, itest = folds['arr_0'], folds['arr_1']
+            
+            index_train = itrain[split, :]
+            index_test = itest[split, :]
+
+        elif self.name == "higgs" or self.name == "airlines_classification10k":
 
             n_test = int(1e4)
             n = full_data['Y'].shape[0]
