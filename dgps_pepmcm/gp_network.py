@@ -20,7 +20,7 @@ class GPNetwork:
 
     def __init__(self, training_data, training_targets, no_layers, no_hiddens, no_inducing_points, noisy_layers=True,
                  var_noise=1e-5, lik_noise=1e-2, no_samples=20, inducing_points=None, shared_prior=False, alpha=1.0,
-                 seed=0, sacred_exp=None):
+                 seed=0, sacred_exp=None, kernel_type="gauss"):
         """
         Creates a new Deep GP network
             :param ndarray training_data: Training points (X)
@@ -65,8 +65,8 @@ class GPNetwork:
             x2 = tf.constant(self.training_data[0:int(training_data.shape[0]/2),:], config.float_type_tf)
             self.x_running = tf.concat([x1, x2], 0)
         else:
-            # self.x_running = tf.cast(self.training_data, config.float_type_tf)
-            self.x_running = self.training_data
+            self.x_running = tf.cast(self.training_data, config.float_type_tf)
+            #self.x_running = self.training_data
 
         # Create placeholders for the data
         self.training_data_tf = tf.compat.v1.placeholder(config.float_type_tf, name="x_training",
@@ -91,6 +91,9 @@ class GPNetwork:
         }
         self.alpha = alpha
         self.sacred_exp = sacred_exp  # This is a useful variable to store sacred experiments data.
+
+        # Kernel type
+        self.kernel_type = kernel_type
 
         # Classification of regression
         # If targets are integer -> classification problem
@@ -142,7 +145,7 @@ class GPNetwork:
             output_previous = layers[-1].getOutput()
             layers += [layer_type.GPLayer(self.no_inducing_points, self.no_points, output_dim_layer, input_dim_layer,
                                           self.no_samples, self.shared_prior, self.set_for_training, self.alpha, self.seed, init_dict,
-                                          output_previous[0], output_previous[1], layer_i)]
+                                          output_previous[0], output_previous[1], layer_i, self.kernel_type)]
 
             del init_dict
 

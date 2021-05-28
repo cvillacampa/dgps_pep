@@ -16,7 +16,6 @@ class OutputLayerMulticlass(BaseLayer):
             n_classes > 2
         ), "The number of classes should be greater than 2 to use the layer Multiclass"
 
-        # TODO: n_classes = D  so we don't really need the parameter
         BaseLayer.__init__(self)
 
         self.training_targets = training_targets
@@ -134,7 +133,7 @@ class OutputLayerMulticlass(BaseLayer):
 
         labels, prob = self.getPredictedValues()
 
-        sq_diff = tf.cast(tf.not_equal(labels, self.test_targets_tf), dtype=config.float_type_tf)
+        sq_diff = tf.cast(tf.not_equal(tf.cast(labels, dtype=config.int_type_tf), self.test_targets_tf), dtype=config.float_type_tf)
 
         targets_one_hot_on = tf.one_hot(self.test_targets_tf[:,0], self.n_classes, tf.constant(1.0, config.float_type_tf), tf.constant(0.0, config.float_type_tf), dtype=config.float_type_tf)
         probs_y_selected = tf.reduce_sum(tf.squeeze(prob) * targets_one_hot_on, 1)

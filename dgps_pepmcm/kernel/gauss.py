@@ -4,7 +4,7 @@ import tensorflow as tf
 
 def compute_kernel(lls, lsf, X, X2=None):
     """
-    This function computes the covariance matrix for the GP
+    This function computes the covariance matrix for the GP using RBF kernel
     """
     if X2 is None:
         X2 = X

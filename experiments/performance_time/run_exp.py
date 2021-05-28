@@ -25,7 +25,7 @@ def load_dataset(dataset_name, split=0):
     return [X, Y, Xs, Ys, Y_mean, Y_std]
 
 
-def build_model(_seed, n_hiddens, nolayers, n_samples, M, alpha, var_noise, likelihood_var, shared_z, X_train=None, y_train=None):
+def build_model(_seed, n_hiddens, nolayers, n_samples, M, alpha, var_noise, likelihood_var, shared_z, kernel, X_train=None, y_train=None):
 
     warnings.filterwarnings('error')
 
@@ -43,8 +43,8 @@ def build_model(_seed, n_hiddens, nolayers, n_samples, M, alpha, var_noise, like
 
     if not n_hiddens:
         n_hiddens = min(30, X_train.shape[1])
-
-    net = GPNetwork(X_train, y_train, nolayers, n_hiddens, M, no_samples=n_samples, inducing_points=Z, var_noise=var_noise, lik_noise=likelihood_var, shared_prior=shared_z, alpha=alpha, seed=_seed)
+    
+    net = GPNetwork(X_train, y_train, nolayers, n_hiddens, M, no_samples=n_samples, inducing_points=Z, var_noise=var_noise, lik_noise=likelihood_var, shared_prior=shared_z, alpha=alpha, seed=_seed, kernel_type=kernel)
 
     return net
 
@@ -71,6 +71,7 @@ def main():
     if (len(sys.argv) != 4):
         print("Usage: \n\tpython3 run_exp.py <dataset_name> <n_layers> <alpha>")
         exit(-1)
+
     model = {
         'n_hiddens': 8,
         'nolayers': int(sys.argv[2]),  # 2,3,4,5
@@ -79,7 +80,8 @@ def main():
         'alpha': float(sys.argv[3]),
         'var_noise': 1e-5,
         'likelihood_var': 0.01,
-        'shared_z': False
+        'shared_z': False,
+        'kernel': 'gauss'
     }
     show_training_info = True
     dataset_name = sys.argv[1]
@@ -93,7 +95,7 @@ def main():
 
     [X_train, y_train, X_test, y_test, y_train_mean, y_train_std] = load_dataset(dataset_name, split=fixed_split)
 
-    net = build_model(seed, model['n_hiddens'], model['nolayers'], model['n_samples'], model['M'], model['alpha'], model['var_noise'], model['likelihood_var'], model['shared_z'], X_train=X_train, y_train=y_train)
+    net = build_model(seed, model['n_hiddens'], model['nolayers'], model['n_samples'], model['M'], model['alpha'], model['var_noise'], model['likelihood_var'], model['shared_z'], model['kernel'], X_train=X_train, y_train=y_train)
 
     training_time = train(seed, minibatch_size, no_iterations, lrate, show_training_info, net=net, 
                           n_data=X_train.shape[0], X_test=X_test, y_test=y_test, y_train_std=y_train_std, 
