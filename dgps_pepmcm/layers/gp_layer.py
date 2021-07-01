@@ -7,7 +7,7 @@ import tensorflow as tf
 
 import dgps_pepmcm.config as config
 from dgps_pepmcm.layers import BaseLayer
-
+from dgps_pepmcm.kernel.gauss import compute_kernel
 from dgps_pepmcm.mean.linear import mean_function
 
 
@@ -18,7 +18,7 @@ class GPLayer(BaseLayer):
 
     def __init__(self, no_inducing_points, no_points, no_nodes, input_d,
                  no_samples, shared_prior, set_for_training, alpha, seed, initialization_dict,
-                 input_means, input_vars, id, kernel):
+                 input_means, input_vars, id, kernel="gauss"):
         """
         Instantiates a GP node
             :param int no_inducing_points: Number of inducing points to use on the node (M)
@@ -37,7 +37,7 @@ class GPLayer(BaseLayer):
         assert no_points > 0 and no_nodes > 0 and input_d > 0
 
         BaseLayer.__init__(self)
-   
+
         self.no_nodes = no_nodes
         self.no_inducing_points = no_inducing_points
         self.no_points = no_points
@@ -50,7 +50,11 @@ class GPLayer(BaseLayer):
         self.set_for_training = set_for_training
         self.W = initialization_dict['W']
         self.seed = seed
-        self.kernel_type = kernel
+
+        if id == 0:
+            self.kernel_type = kernel
+        else:
+            self.kernel_type = "gauss"
 
         with tf.compat.v1.variable_scope(f"Layer_{id}_GP"):
             self.lls = tf.compat.v1.get_variable('lls', initializer=initialization_dict['Lengthscales'], dtype=config.float_type_tf)
@@ -72,7 +76,7 @@ class GPLayer(BaseLayer):
         input_samples = self.input_means + input_samples * (self.input_vars) ** 0.5
 
         S, N, D, M = tf.shape(input_samples)[0], tf.shape(input_samples)[1], self.input_d, self.no_inducing_points
-        
+
         # Compute the kernel matrix
         if self.kernel_type=="gauss":
             from dgps_pepmcm.kernel.gauss import compute_kernel

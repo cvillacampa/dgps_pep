@@ -41,12 +41,12 @@ class GPNetwork:
         """
 
         # Reset graph
-        tf.compat.v1.reset_default_graph()
+        tf.reset_default_graph()
 
         # Initializes random seed
         self.seed = seed
         np.random.seed = seed
-        tf.compat.v1.set_random_seed(seed)
+        tf.set_random_seed(seed)
 
         # Read training data
         self.training_data = training_data
@@ -66,14 +66,14 @@ class GPNetwork:
             self.x_running = tf.concat([x1, x2], 0)
         else:
             self.x_running = tf.cast(self.training_data, config.float_type_tf)
-            #self.x_running = self.training_data
+            # self.x_running = self.training_data
 
         # Create placeholders for the data
-        self.training_data_tf = tf.compat.v1.placeholder(config.float_type_tf, name="x_training",
+        self.training_data_tf = tf.placeholder(config.float_type_tf, name="x_training",
                                                shape=[None, self.training_data.shape[1]])
-        self.training_targets_tf = tf.compat.v1.placeholder(config.float_type_tf, name="y_training",
+        self.training_targets_tf = tf.placeholder(config.float_type_tf, name="y_training",
                                                   shape=[None, self.training_targets.shape[1]])
-        self.set_for_training = tf.compat.v1.placeholder(config.float_type_tf, name="set_for_training", shape=[])
+        self.set_for_training = tf.placeholder(config.float_type_tf, name="set_for_training", shape=[])
 
         # Model parameters
         self.no_layers = no_layers
@@ -92,7 +92,7 @@ class GPNetwork:
         self.alpha = alpha
         self.sacred_exp = sacred_exp  # This is a useful variable to store sacred experiments data.
 
-        # Kernel type
+        # Kernel (gauss, poly)
         self.kernel_type = kernel_type
 
         # Classification of regression
@@ -112,7 +112,7 @@ class GPNetwork:
         self.sampling_posterior = self.layers[-1].sampleFromPosterior()
 
         # Create tensorflow session
-        self.sess = tf.compat.v1.Session()
+        self.sess = tf.Session()
 
     def __enter__(self):
         return self
@@ -210,17 +210,19 @@ class GPNetwork:
 
         lls = tf.zeros([output_dim_layer_hyper, input_dim_layer], dtype=config.float_type_tf)
         lsf = tf.zeros([output_dim_layer_hyper], dtype=config.float_type_tf)
-        
+        # if layer_i == 0:
+        # We initialize the lls on the first layer to the log of the median of the squared distance
         training_data = tf.constant(self.training_data[np.random.choice(self.no_points, size=self.no_inducing_points, replace=False), :], dtype=config.float_type_tf)
         M = tf.reduce_sum(training_data**2, 1)[:, None] * tf.ones([1, self.no_inducing_points], dtype=config.float_type_tf)
         dist = M - 2 * tf.matmul(training_data, training_data, transpose_b=True) + tf.transpose(M)
         median = tf.contrib.distributions.percentile(dist, q=50)
-        lls = tf.math.log(median) * tf.ones(tf.shape(lls), dtype=config.float_type_tf)
+        lls = tf.log(median) * tf.ones(tf.shape(lls), dtype=config.float_type_tf)
 
-        L = tf.random.normal(shape=[output_dim_layer, self.no_inducing_points, self.no_inducing_points], dtype=config.float_type_tf, seed=self.seed)
-        if not islast:
-            L *= config.jitter
-        m = tf.random.normal(shape=[output_dim_layer, self.no_inducing_points, 1], dtype=config.float_type_tf, seed=self.seed)  # seed=8
+
+        L = tf.random_normal(shape=[output_dim_layer, self.no_inducing_points, self.no_inducing_points], dtype=config.float_type_tf, seed=self.seed)
+        L *= config.jitter
+        L = L - tf.matrix_diag(tf.matrix_diag_part(L)) + (tf.matrix_diag(tf.matrix_diag_part(L)) - 5.0)
+        m = tf.random_normal(shape=[output_dim_layer, self.no_inducing_points, 1], dtype=config.float_type_tf, seed=self.seed)  # seed=8
 
         return {'W': W, 'inducing_points': z, 'Lengthscales': lls, 'lsf': lsf, 'LParamPost': L, 'mParamPost': m}
 
@@ -241,7 +243,7 @@ class GPNetwork:
             # self.x_running = self.x_running.dot(W)
             self.x_running = tf.matmul(self.x_running, W)
         elif output_dim_layer < input_dim_layer:
-            _, _, V = tf.linalg.svd(self.x_running)
+            _, _, V = tf.svd(self.x_running)
             W = tf.transpose(V[:output_dim_layer, :])
             self.x_running = tf.matmul(self.x_running, W)
         return W
@@ -280,7 +282,7 @@ class GPNetwork:
             energy += layer.getLayerContributionToEnergy()
         return energy
 
-    
+    # TODO: Desescalado??
     def predict(self, test_data):
         """
         Predict the output for new data
@@ -386,7 +388,7 @@ class GPNetwork:
         sq_diff = np.array(np.concatenate(sq_diff, 0), dtype=float)
         
         if self.is_classification: # Classification
-            return np.average(lik), np.average(sq_diff) 
+            return np.nanmean(lik), np.average(sq_diff) 
         else:
             return np.average(lik), np.average(sq_diff) ** 0.5
 
@@ -405,6 +407,7 @@ class GPNetwork:
             :param y_train_mean: If != None it computes test performance during the training process
             :param show_training_info: Verbose mode
             :param log_every: Log every x iterations
+            :param continue_training: Continue from previous training 
         """
 
         assert len(self.layers) > 1
@@ -421,17 +424,20 @@ class GPNetwork:
 
             if show_training_info:
                 print('Initializing network')
-            self.sess.run(tf.compat.v1.global_variables_initializer())
+            self.sess.run(tf.global_variables_initializer())
 
-            self.sess.graph.finalize()
+            # self.sess.graph.finalize()
 
             if show_training_info:
                 print('Training')
 
         n_batches = int(np.ceil(1.0 * n_data_points / self.minibatch_size))
 
+        # start = time.process_time()
+        # start_epoch = time.process_time()
         start = time.time()
         start_epoch = time.time()
+        start_train = time.time()
         
         # Object that keeps maxlen epoch times, for ETA prediction.
         last_epoch_times = deque(maxlen=20)
@@ -449,6 +455,8 @@ class GPNetwork:
                 minibatch_data = self.training_data[i * self.minibatch_size:min((i + 1) * self.minibatch_size, n_data_points), :]
                 minibatch_targets = self.training_targets[i * self.minibatch_size:min((i + 1) * self.minibatch_size, n_data_points), :]
                 dict = {self.training_data_tf: minibatch_data, self.training_targets_tf: minibatch_targets, self.set_for_training: 1.0}
+                
+                # import pdb; pdb.set_trace()
 
                 current_energy = self.sess.run([self.energy, self.train_step], dict)[0]
 
@@ -460,7 +468,13 @@ class GPNetwork:
 
                     energy_to_log = -avg_energy * n_batches / (i+1)
                     if X_test is not None and y_test is not None:
+
+                        start_predict = time.time()
                         test_nll, test_error = self.getLogLikelihoodError(X_test, y_test, y_train_std, y_train_mean)
+                        time_predict = time.time() - start_predict
+                        time_train = start_predict - start_train
+                        start_train = time.time()
+                        #train_nll, train_error = self.getLogLikelihoodError(self.training_data, self.training_targets, y_train_std, y_train_mean)
                     if show_training_info:
                         elapsed_time_epoch = time.time() - start_epoch
                         last_epoch_times.append(elapsed_time_epoch)
@@ -474,13 +488,14 @@ class GPNetwork:
                                          gradient_steps, energy_to_log, elapsed_time_epoch, memory_used(), eta, test_nll, test_error
                                      )
                                  )
+                                #print('Gradient steps: {}, - Energy: {:.6f} Time: {} --- TestNLL: {}, Test Error: {}, TrainNLL: {}, Train Error: {}'.format(gradient_steps, energy_to_log, elapsed_time_epoch, test_nll, test_error, train_nll, train_error))
                             else:
                                 print(
                                         "Iteration: {: <4}| Energy: {: <11.6f} | Time: {: >8.4f}s | Memory: {: >2.2f} GB | ETA: {} | TestNLL: {: >5.6}, TestRMSE: {: >5.6}".format(
                                          gradient_steps, energy_to_log, elapsed_time_epoch, memory_used(), eta, test_nll, test_error
                                      )
                                  )
-                            
+                                #print('Gradient steps: {}, - Energy: {:.6f} Time: {} --- TestNLL: {}, TestError: {}'.format(gradient_steps, energy_to_log, elapsed_time_epoch, test_nll, test_error))
                         else:
                             print(
                                  "Iteration: {: <4}| Energy: {: <11.6f} | Time: {: >8.4f}s | Memory: {: >2.2f} GB | ETA: {}".format(
@@ -488,6 +503,7 @@ class GPNetwork:
                                  )
                              )
                     else:
+                        # elapsed_time_epoch = time.process_time() - start_epoch
                         elapsed_time_epoch = time.time() - start_epoch
 
                     if self.sacred_exp is not None:
