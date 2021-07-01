@@ -14,11 +14,11 @@ pip install -r requirements.txt
 ## Experiments
 
 This repository comes with a series of experiments to evaluate the performance of the proposed approach:
-	* Bimodal and heteroscedastic problems.
-	* UCI regression
-	* UCI binary classification
-	* UCI multiclass classification
-	* Big datasets: Airlines delays (regression and binary classification), HIGGS (binary classification), MNIST (multiclass classification)
+ * Bimodal and heteroscedastic problems.
+ * UCI regression
+ * UCI binary classification
+ * UCI multiclass classification
+ * Big datasets: Airlines delays (regression and binary classification), HIGGS (binary classification), MNIST (multiclass classification)
 
 ### Experimental data 
 
@@ -28,19 +28,23 @@ In order to run the experiments, the first step is to uncompress the data and th
 ### Running the experiments
 
 There are three subfolders in the experiments directory, one of each corresponding to a different type of experiment:
-	* predictive_bimodal: 
+ * predictive_bimodal: 
 
-	```bash
-	Usage:
-		python3 multimodal.py <alpha> (1|2)
-	```
+```bash
+Usage:
+	python3 multimodal.py <alpha> (1|2)
+```
 
-	* uci:
+ * uci:
 
-	```bash
-	Usage:
-		python3 run_uci.py <dataset_name> <split> <n_layers> <alpha>
+```bash
+Usage:
+	python3 run_uci.py <dataset_name> <split> <n_layers> <alpha>
+```
 
-	```
+ * performance_time:
 
-	* performance_time
+```bash
+Usage:
+	python3 run_exp.py <dataset_name> <n_layers> <alpha>
+```
