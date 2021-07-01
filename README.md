@@ -2,7 +2,7 @@
 
 Alpha-divergence Minimization for Deep Gaussian Processes
 
-Requirements: Python3.6, tensorflow1.15.0, tensorflow_probability=0.8, numpy1.19.4, psutil5.6.0
+Requirements: Python3.6, tensorflow1.15.0, tensorflow_probability0.8, numpy1.19.4, psutil5.6.0
 
 You can install all the Python dependencies needed to execute the experiments with pip by running:
 
