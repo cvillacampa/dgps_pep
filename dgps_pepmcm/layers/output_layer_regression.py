@@ -68,11 +68,11 @@ class OutputLayerRegression(BaseLayer):
         input_vars += tf.exp(self.lvar_noise)
 
         # Output variance is the second moment of a mixture of Gaussians
-        output_vars = tf.reduce_mean(output_means**2 + input_vars, 0) - output_means**2
+        output_vars = tf.reduce_mean(input_means**2 + input_vars, 0) - output_means**2
         
         # Unscale
         output_means = output_means * self.y_train_std + self.y_train_mean 
-        output_vars = output_vars * self.y_train_std 
+        output_vars = output_vars * self.y_train_std**2
 
         return output_means, output_vars
 
@@ -118,7 +118,7 @@ class OutputLayerRegression(BaseLayer):
         # Get corresponding means and vars
         indexes = tf.concat([samples_categorical[:, None], tf.range(0, N)[:, None]], 1)
         mixture_means = tf.gather_nd(input_means, indexes) * self.y_train_std + self.y_train_mean  # mixture_means = input_means[samples_categorical, tf.range(0, N), :]
-        mixture_vars = tf.gather_nd(input_vars, indexes) * self.y_train_std  # Size: N,D
+        mixture_vars = tf.gather_nd(input_vars, indexes) * self.y_train_std**2  # Size: N,D
 
         return tf.random.normal(shape=[N, D], mean=mixture_means, stddev=tf.sqrt(mixture_vars), dtype=config.float_type_tf, seed=self.seed)
 
@@ -141,7 +141,7 @@ class OutputLayerRegression(BaseLayer):
         # Get corresponding means and vars
         indexes = tf.concat([samples_categorical[:, None], tf.range(0, N)[:, None]], 1)
         mixture_means = tf.gather_nd(input_means, indexes) * self.y_train_std + self.y_train_mean  # mixture_means = input_means[samples_categorical, tf.range(0, N), :]
-        mixture_vars = tf.gather_nd(input_vars, indexes) * self.y_train_std  # Size: N,D
+        mixture_vars = tf.gather_nd(input_vars, indexes) * self.y_train_std**2  # Size: N,D
 
         return tf.random.normal(shape=[N, D], mean=mixture_means, stddev=tf.sqrt(mixture_vars), dtype=config.float_type_tf, seed=self.seed)
 
