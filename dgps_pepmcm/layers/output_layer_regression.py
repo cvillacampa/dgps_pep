@@ -64,11 +64,15 @@ class OutputLayerRegression(BaseLayer):
         input_means, input_vars = self.input_means, self.input_vars  # S,N,D
         output_means = tf.reduce_mean(input_means, 0)  # N,D
 
-        # Añadir ruido a la varianza
+        # Add noise to the variance
         input_vars += tf.exp(self.lvar_noise)
 
-        # La varianza de salida es el segundo momento de una mixtura de gaussianas
+        # Output variance is the second moment of a mixture of Gaussians
         output_vars = tf.reduce_mean(output_means**2 + input_vars, 0) - output_means**2
+        
+        # Unscale
+        output_means = output_means * self.y_train_std + self.y_train_mean 
+        output_vars = output_vars * self.y_train_std 
 
         return output_means, output_vars
 

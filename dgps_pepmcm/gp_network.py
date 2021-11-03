@@ -282,8 +282,8 @@ class GPNetwork:
             energy += layer.getLayerContributionToEnergy()
         return energy
 
-    # TODO: Desescalado??
-    def predict(self, test_data):
+
+    def predict(self, test_data, y_train_mean, y_train_std):
         """
         Predict the output for new data
 
@@ -294,9 +294,13 @@ class GPNetwork:
         assert test_data.shape[1] == self.problem_dim
 
         test_data = test_data.astype(config.float_type_np)
+        
+        output_layer = self.layers[-1]
 
         predicted_values = self.sess.run(self.predict_function, feed_dict={
                 self.training_data_tf: test_data,
+                output_layer.y_train_std: y_train_std,
+                output_layer.y_train_mean: y_train_mean,
                 self.set_for_training: 0.0
             })
 
